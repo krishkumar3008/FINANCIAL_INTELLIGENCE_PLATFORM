@@ -129,6 +129,8 @@ def build_analyst_guide(output_pdf: str = "docs/analyst_guide.pdf"):
                 "Financial Analysts, Data Engineers, Quant Researchers",
             ],
             ["Platform Scope:", "Nifty 100 Companies (10-Year Historical Financials)"],
+            ["Live Streamlit App:", "https://financialintelligence.streamlit.app/"],
+            ["GitHub Repository:", "https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM"],
             ["Author / Engineering:", "Google DeepMind Advanced Agentic Coding Team"],
             ["Date Stamped:", "Day 45 Final Acceptance Sign-Off"],
         ],
