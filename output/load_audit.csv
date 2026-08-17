@@ -1,0 +1,13 @@
+table_name,source_file,original_rows,loaded_rows,rejected_rows,critical_rejections,warning_rejections,status
+companies,Dataset\companies.xlsx,92,92,0,0,0,SUCCESS
+sectors,Dataset\supporting datasets\sectors.xlsx,92,92,0,0,0,SUCCESS
+profitandloss,Dataset\profitandloss.xlsx,1276,1164,112,0,112,SUCCESS
+balancesheet,Dataset\balancesheet.xlsx,1312,1058,254,0,254,SUCCESS
+cashflow,Dataset\cashflow.xlsx,1187,1056,131,0,131,SUCCESS
+financial_ratios,Dataset\supporting datasets\financial_ratios.xlsx,1184,1041,143,0,143,SUCCESS
+market_cap,Dataset\supporting datasets\market_cap.xlsx,552,552,0,0,0,SUCCESS
+analysis,Dataset\analysis.xlsx,20,4,16,0,16,SUCCESS
+documents,Dataset\documents.xlsx,1585,1456,129,0,129,SUCCESS
+prosandcons,Dataset\prosandcons.xlsx,16,4,12,0,12,SUCCESS
+peer_groups,Dataset\supporting datasets\peer_groups.xlsx,56,56,0,0,0,SUCCESS
+stock_prices,Dataset\supporting datasets\stock_prices.xlsx,5520,5520,0,0,0,SUCCESS
