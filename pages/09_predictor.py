@@ -15,6 +15,55 @@ from src.etl.live_updater import fetch_and_update_prices
 
 st.set_page_config(page_title="AI Market Predictor", page_icon="🤖", layout="wide")
 
+# Custom CSS for spacious metric cards with zero text truncation
+st.markdown("""
+<style>
+.metric-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.metric-label {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+}
+.metric-value {
+    color: #f8fafc;
+    font-size: 1.4rem;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+.metric-sub-green {
+    color: #4ade80;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.metric-sub-red {
+    color: #f87171;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.metric-sub-blue {
+    color: #38bdf8;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.metric-sub-gray {
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Modern Title Banner
 st.markdown("""
 <div style="background: linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%); padding: 24px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
@@ -55,7 +104,7 @@ with col_bull:
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#4ade80;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f} ({gap_t})</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f}</strong>", unsafe_allow_html=True)
             c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 with col_bear:
@@ -67,7 +116,7 @@ with col_bear:
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#f87171;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f} ({gap_t})</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f}</strong>", unsafe_allow_html=True)
             c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 st.divider()
@@ -92,9 +141,6 @@ pred = predict_stock_tomorrow(ticker)
 if "error" in pred:
     st.error(pred["error"])
 else:
-    # Summary Metrics Grid (6 Metric Cards)
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
-    
     current_c = pred.get("current_close", 0.0)
     as_of = pred.get("as_of_date", "")
     open_p = pred.get("predicted_open_price", current_c)
@@ -112,13 +158,68 @@ else:
     prob_bear = pred.get("prob_bearish", 50.0)
 
     dir_icon = "🟢" if direction == "BULLISH" else "🔴"
-    
-    m1.metric("Current Close", f"₹{current_c:,.2f}", f"As of {as_of}")
-    m2.metric("Tomorrow Open Price", f"₹{open_p:,.2f}", f"{gap_t} ({gap_pct:+.2f}%)")
-    m3.metric("Tomorrow Direction", f"{dir_icon} {direction}", f"{conf_pct}% Confidence")
-    m4.metric("Target Close Price", f"₹{target_c:,.2f}", f"{change_pct:+.2f}%")
-    m5.metric("Stop-Loss Bounds", f"₹{stop_l:,.2f}")
-    m6.metric("Support / Resistance", f"₹{sup} / ₹{res}")
+    dir_color = "#4ade80" if direction == "BULLISH" else "#f87171"
+    target_color_class = "metric-sub-green" if change_pct >= 0 else "metric-sub-red"
+    gap_color_class = "metric-sub-green" if gap_pct > 0 else ("metric-sub-red" if gap_pct < 0 else "metric-sub-gray")
+
+    # Spacious 3x2 Grid for Metric Cards with Full Text Visibility
+    row1_c1, row1_c2, row1_c3 = st.columns(3)
+
+    with row1_c1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Current Close Price</div>
+            <div class="metric-value">₹{current_c:,.2f}</div>
+            <div class="metric-sub-gray">As of {as_of}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with row1_c2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Tomorrow Open Price Forecast</div>
+            <div class="metric-value">₹{open_p:,.2f}</div>
+            <div class="{gap_color_class}">{gap_t} ({gap_pct:+.2f}%)</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with row1_c3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Tomorrow Trend Forecast</div>
+            <div class="metric-value" style="color: {dir_color};">{dir_icon} {direction}</div>
+            <div class="metric-sub-blue">{conf_pct}% AI Confidence</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    row2_c1, row2_c2, row2_c3 = st.columns(3)
+
+    with row2_c1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Target Close Price Target</div>
+            <div class="metric-value">₹{target_c:,.2f}</div>
+            <div class="{target_color_class}">{change_pct:+.2f}% Expected Return</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with row2_c2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Stop-Loss Bounds</div>
+            <div class="metric-value">₹{stop_l:,.2f}</div>
+            <div class="metric-sub-red">ATR Risk Threshold</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with row2_c3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Support / Resistance (20D)</div>
+            <div class="metric-value">₹{sup:,.2f} / ₹{res:,.2f}</div>
+            <div class="metric-sub-gray">20-Day Range Boundaries</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     col_chart, col_signals = st.columns([3, 1])
 
