@@ -38,7 +38,6 @@ with col_hdr2:
 # ----------------------------------------------------
 st.markdown("<h2 style='color: #f8fafc; font-size: 1.5rem;'>🔥 Top Market Setups for Tomorrow</h2>", unsafe_allow_html=True)
 
-@st.cache_data(ttl=600)
 def load_top_forecasts():
     return get_top_forecasts(top_n=4)
 
@@ -50,21 +49,25 @@ col_bull, col_bear = st.columns(2)
 with col_bull:
     st.markdown("#### 🟢 Top Bullish Candidates")
     for b in top_data.get("top_bullish", []):
+        open_p = b.get("predicted_open_price", b.get("current_close", 0.0))
+        gap_t = b.get("gap_type", "")
         with st.container(border=True):
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#4ade80;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{b['predicted_open_price']:,.2f} ({b.get('gap_type', '')})</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f} ({gap_t})</strong>", unsafe_allow_html=True)
             c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 with col_bear:
     st.markdown("#### 🔴 Top Bearish Candidates")
     for b in top_data.get("top_bearish", []):
+        open_p = b.get("predicted_open_price", b.get("current_close", 0.0))
+        gap_t = b.get("gap_type", "")
         with st.container(border=True):
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#f87171;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{b['predicted_open_price']:,.2f} ({b.get('gap_type', '')})</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{open_p:,.2f} ({gap_t})</strong>", unsafe_allow_html=True)
             c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 st.divider()
