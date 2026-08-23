@@ -95,24 +95,40 @@ else:
     # Summary Metrics Grid (6 Metric Cards)
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     
-    dir_icon = "🟢" if pred["direction"] == "BULLISH" else "🔴"
+    current_c = pred.get("current_close", 0.0)
+    as_of = pred.get("as_of_date", "")
+    open_p = pred.get("predicted_open_price", current_c)
+    gap_t = pred.get("gap_type", "FLAT OPEN ⚖️")
+    gap_pct = pred.get("expected_gap_pct", 0.0)
+    direction = pred.get("direction", "BULLISH")
+    conf_pct = pred.get("confidence_pct", 50.0)
+    target_c = pred.get("predicted_target_close", current_c)
+    change_pct = pred.get("expected_change_pct", 0.0)
+    stop_l = pred.get("stop_loss", current_c)
+    sup = pred.get("support_20d", 0.0)
+    res = pred.get("resistance_20d", 0.0)
+    rsi_val = pred.get("rsi_14", 50.0)
+    prob_bull = pred.get("prob_bullish", 50.0)
+    prob_bear = pred.get("prob_bearish", 50.0)
+
+    dir_icon = "🟢" if direction == "BULLISH" else "🔴"
     
-    m1.metric("Current Close", f"₹{pred['current_close']:,.2f}", f"As of {pred['as_of_date']}")
-    m2.metric("Tomorrow Open Price", f"₹{pred['predicted_open_price']:,.2f}", f"{pred['gap_type']} ({pred['expected_gap_pct']:+.2f}%)")
-    m3.metric("Tomorrow Direction", f"{dir_icon} {pred['direction']}", f"{pred['confidence_pct']}% Confidence")
-    m4.metric("Target Close Price", f"₹{pred['predicted_target_close']:,.2f}", f"{pred['expected_change_pct']:+.2f}%")
-    m5.metric("Stop-Loss Bounds", f"₹{pred['stop_loss']:,.2f}")
-    m6.metric("Support / Resistance", f"₹{pred['support_20d']} / ₹{pred['resistance_20d']}")
+    m1.metric("Current Close", f"₹{current_c:,.2f}", f"As of {as_of}")
+    m2.metric("Tomorrow Open Price", f"₹{open_p:,.2f}", f"{gap_t} ({gap_pct:+.2f}%)")
+    m3.metric("Tomorrow Direction", f"{dir_icon} {direction}", f"{conf_pct}% Confidence")
+    m4.metric("Target Close Price", f"₹{target_c:,.2f}", f"{change_pct:+.2f}%")
+    m5.metric("Stop-Loss Bounds", f"₹{stop_l:,.2f}")
+    m6.metric("Support / Resistance", f"₹{sup} / ₹{res}")
 
     col_chart, col_signals = st.columns([3, 1])
 
     with col_signals:
         st.markdown("#### ⚡ Quantitative Signals")
-        st.markdown(f"**Predicted Open**: `₹{pred['predicted_open_price']:,.2f}`")
-        st.markdown(f"**Opening Gap**: `{pred['gap_type']}` (`{pred['expected_gap_pct']:+.2f}%`)")
-        st.markdown(f"**RSI (14)**: `{pred['rsi_14']}`")
-        st.markdown(f"**Bullish Prob**: `{pred['prob_bullish']}%`")
-        st.markdown(f"**Bearish Prob**: `{pred['prob_bearish']}%`")
+        st.markdown(f"**Predicted Open**: `₹{open_p:,.2f}`")
+        st.markdown(f"**Opening Gap**: `{gap_t}` (`{gap_pct:+.2f}%`)")
+        st.markdown(f"**RSI (14)**: `{rsi_val}`")
+        st.markdown(f"**Bullish Prob**: `{prob_bull}%`")
+        st.markdown(f"**Bearish Prob**: `{prob_bear}%`")
         
         st.markdown("#### 📌 Key Indicators")
         for sig in pred.get("key_signals", []):
