@@ -3,7 +3,12 @@ import sqlite3
 import datetime
 import logging
 import pandas as pd
-import yfinance as yf
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
+
 from src.database import get_db_connection
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

@@ -25,3 +25,4 @@ requests
 streamlit
 xlsxwriter
 pyyaml
+yfinance
