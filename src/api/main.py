@@ -10,6 +10,7 @@ from src.api.routers import (
     health,
     peers,
     portfolio,
+    predict,
     screener,
     sectors,
     valuation,
@@ -60,6 +61,7 @@ app.include_router(peers.router, prefix="/api/v1", tags=["Peers"])
 app.include_router(valuation.router, prefix="/api/v1", tags=["Valuation"])
 app.include_router(portfolio.router, prefix="/api/v1", tags=["Portfolio"])
 app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
+app.include_router(predict.router, prefix="/api/v1", tags=["Predictor"])
 
 
 @app.get("/", tags=["Root"])

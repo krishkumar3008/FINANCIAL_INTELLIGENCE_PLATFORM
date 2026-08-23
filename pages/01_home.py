@@ -12,7 +12,7 @@ st.title("🏠 Home — Nifty 100 Financial Overview")
 
 # Sidebar Year Selector
 st.sidebar.header("Filter Options")
-available_years = list(range(2019, 2025))
+available_years = list(range(2019, 2027))
 selected_year = st.sidebar.selectbox("Select Financial Year:", available_years, index=len(available_years) - 1)
 
 # Fetch Data

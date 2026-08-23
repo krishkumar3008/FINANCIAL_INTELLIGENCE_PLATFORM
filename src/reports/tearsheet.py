@@ -24,8 +24,7 @@ from reportlab.platypus import (
 
 def generate_chart_revenue_pat(pnl_df: pd.DataFrame) -> io.BytesIO:
     """Generates 10-year Revenue and Net Profit side-by-side bar chart."""
-    plt.figure(figsize=(7.5, 2.3), dpi=150)
-    df_clean = pnl_df[pnl_df["year"] != 9999].tail(10)
+    df_clean = pnl_df[pnl_df["year"] != 9999].sort_values("year").tail(10)
     years = [str(y) for y in df_clean["year"]]
     sales = df_clean["sales"].fillna(0).tolist()
     pat = df_clean["net_profit"].fillna(0).tolist()
@@ -38,7 +37,7 @@ def generate_chart_revenue_pat(pnl_df: pd.DataFrame) -> io.BytesIO:
     ax.bar(x + width / 2, pat, width, label="Net Profit (PAT)", color="#2B6CB0")
 
     ax.set_title(
-        "10-Year Revenue & Net Profit Trend (₹ Cr)",
+        "10-Year Revenue & Net Profit Trend (Rs. Cr)",
         fontsize=10,
         fontweight="bold",
         pad=4,
@@ -60,9 +59,9 @@ def generate_chart_revenue_pat(pnl_df: pd.DataFrame) -> io.BytesIO:
 
 def generate_chart_roe_roce(ratios_df: pd.DataFrame, comp_row: dict) -> io.BytesIO:
     """Generates ROE and ROCE line chart."""
-    df_clean = ratios_df[ratios_df["year"] != 9999].tail(10)
+    df_clean = ratios_df[ratios_df["year"] != 9999].sort_values("year").tail(10)
     years = [str(y) for y in df_clean["year"]]
-    roe = df_clean["return_on_equity_pct"].tolist()
+    roe = df_clean["return_on_equity_pct"].fillna(0).tolist()
 
     # Use roce from ratios or fallback to company level
     roce = []
@@ -70,7 +69,7 @@ def generate_chart_roe_roce(ratios_df: pd.DataFrame, comp_row: dict) -> io.Bytes
         val = r.get("roce_percentage")
         if pd.isna(val) or val is None:
             val = comp_row.get("roce_percentage", 15.0)
-        roce.append(val)
+        roce.append(val if pd.notna(val) else 15.0)
 
     if not years:
         years = ["Latest"]
@@ -110,7 +109,7 @@ def generate_chart_roe_roce(ratios_df: pd.DataFrame, comp_row: dict) -> io.Bytes
 
 def generate_chart_bs_composition(bs_df: pd.DataFrame) -> io.BytesIO:
     """Generates Balance Sheet stacked bar chart."""
-    df_clean = bs_df[bs_df["year"] != 9999].tail(10)
+    df_clean = bs_df[bs_df["year"] != 9999].sort_values("year").tail(10)
     years = [str(y) for y in df_clean["year"]]
 
     equity = (
@@ -136,7 +135,7 @@ def generate_chart_bs_composition(bs_df: pd.DataFrame) -> io.BytesIO:
     )
 
     ax.set_title(
-        "Balance Sheet Liabilities Composition (₹ Cr)",
+        "Balance Sheet Liabilities Composition (Rs. Cr)",
         fontsize=10,
         fontweight="bold",
         pad=4,
@@ -161,36 +160,40 @@ def generate_chart_cashflow_waterfall(cf_df: pd.DataFrame) -> io.BytesIO:
     df_clean = cf_df[cf_df["year"] != 9999]
     latest = df_clean.iloc[-1] if not df_clean.empty else {}
 
-    cfo = latest.get("operating_activity", 0) or 0
-    cfi = latest.get("investing_activity", 0) or 0
-    cff = latest.get("financing_activity", 0) or 0
-    net_cf = latest.get("net_cash_flow", 0) or (cfo + cfi + cff)
+    cfo = float(latest.get("operating_activity", 0) or 0)
+    cfi = float(latest.get("investing_activity", 0) or 0)
+    cff = float(latest.get("financing_activity", 0) or 0)
+    net_cf = float(latest.get("net_cash_flow", 0) or (cfo + cfi + cff))
 
     categories = ["CFO (Ops)", "CFI (Inv)", "CFF (Fin)", "Net Cash Flow"]
     values = [cfo, cfi, cff, net_cf]
     bar_colors = ["#2F855A" if v >= 0 else "#C53030" for v in values]
 
-    fig, ax = plt.subplots(figsize=(7.5, 1.8), dpi=150)
+    fig, ax = plt.subplots(figsize=(7.5, 2.1), dpi=150)
     bars = ax.bar(categories, values, color=bar_colors, width=0.45)
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
 
-    for bar in bars:
-        height = bar.get_height()
-        va = "bottom" if height >= 0 else "top"
-        ax.annotate(
-            f"₹{height:,.0f}",
-            xy=(bar.get_x() + bar.get_width() / 2, height),
-            xytext=(0, 3 if height >= 0 else -10),
-            textcoords="offset points",
+    min_val, max_val = min(values), max(values)
+    span = max(abs(min_val), abs(max_val), 100)
+    ax.set_ylim(min_val - (span * 0.3), max_val + (span * 0.3))
+
+    for bar, val in zip(bars, values):
+        y_offset = span * 0.06 if val >= 0 else -span * 0.12
+        va = "bottom" if val >= 0 else "top"
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            val + y_offset,
+            f"Rs.{val:,.0f}",
             ha="center",
             va=va,
             fontsize=8,
             fontweight="bold",
+            color="#1A365D",
         )
 
     latest_yr = latest.get("year", "Latest")
     ax.set_title(
-        f"Latest Cash Flow Breakdown FY{latest_yr} (₹ Cr)",
+        f"Latest Cash Flow Breakdown FY{latest_yr} (Rs. Cr)",
         fontsize=10,
         fontweight="bold",
         pad=4,
@@ -205,6 +208,25 @@ def generate_chart_cashflow_waterfall(cf_df: pd.DataFrame) -> io.BytesIO:
     plt.close("all")
     buf.seek(0)
     return buf
+
+
+def format_kpi_value(val, is_currency=False, is_ratio=False, is_pct=False, default="N/A") -> str:
+    """Formats numeric values cleanly and safely handles NaN / None."""
+    if val is None or pd.isna(val):
+        return default
+    try:
+        val_f = float(val)
+        if np.isnan(val_f):
+            return default
+        if is_currency:
+            return f"Rs.{val_f:,.0f} Cr"
+        if is_ratio:
+            return f"{val_f:.1f}x"
+        if is_pct:
+            return f"{val_f:.1f}%"
+        return f"{val_f:.2f}"
+    except Exception:
+        return default
 
 
 def generate_company_tearsheet(
@@ -267,10 +289,6 @@ def generate_company_tearsheet(
 
     conn.close()
 
-    # If fewer than 3 years of financial data, caller may skip, but if called, generate gracefully
-    if len(pnl_df[pnl_df["year"] != 9999]) < 3:
-        pass  # proceed with available data
-
     # Fetch Pros & Cons
     if pros_cons_df is not None:
         c_pros = pros_cons_df[
@@ -283,49 +301,33 @@ def generate_company_tearsheet(
         c_pros = ["Strong financial performance and leading market positioning."]
         c_cons = ["Market volatility and competitive pressure."]
 
-    # Capital Allocation Badge
-    cap_pattern = "Reinvestor"
-    if intel_df is not None:
-        match_intel = intel_df[intel_df["company_id"] == company_id]
-        if not match_intel.empty:
-            cap_pattern = match_intel.iloc[0]["capital_allocation_label"]
-
     # Latest Metrics for KPI Tiles
     latest_r = ratios_df.iloc[-1] if not ratios_df.empty else {}
     latest_m = mcap_df.iloc[-1] if not mcap_df.empty else {}
-    latest_p = pnl_df.iloc[-1] if not pnl_df.empty else {}
 
-    mcap_val = latest_m.get("market_cap_crore", "N/A")
-    if isinstance(mcap_val, (int, float)):
-        mcap_str = f"₹{mcap_val:,.0f} Cr"
-    else:
-        mcap_str = "N/A"
+    mcap_str = format_kpi_value(latest_m.get("market_cap_crore"), is_currency=True)
+    pe_str = format_kpi_value(latest_m.get("pe_ratio"), is_ratio=True)
+    
+    roe_val = comp_dict.get("roe_percentage") or latest_r.get("return_on_equity_pct")
+    roe_str = format_kpi_value(roe_val, is_pct=True)
 
-    pe_val = latest_m.get("pe_ratio", "N/A")
-    pe_str = f"{pe_val:.1f}x" if isinstance(pe_val, (int, float)) else "N/A"
+    roce_val = comp_dict.get("roce_percentage") or latest_r.get("roce_percentage")
+    roce_str = format_kpi_value(roce_val, is_pct=True)
 
-    roe_val = comp_dict.get("roe_percentage") or latest_r.get(
-        "return_on_equity_pct", "N/A"
-    )
-    roe_str = f"{roe_val:.1f}%" if isinstance(roe_val, (int, float)) else "N/A"
-
-    roce_val = comp_dict.get("roce_percentage") or latest_r.get(
-        "roce_percentage", "N/A"
-    )
-    roce_str = f"{roce_val:.1f}%" if isinstance(roce_val, (int, float)) else "N/A"
-
-    de_val = latest_r.get("debt_to_equity", 0.0)
-    de_str = f"{de_val:.2f}" if isinstance(de_val, (int, float)) else "0.00"
+    de_val = latest_r.get("debt_to_equity")
+    de_str = format_kpi_value(de_val, default="0.00x" if pd.notna(de_val) else "N/A")
+    if de_str != "N/A" and not de_str.endswith("x"):
+        de_str += "x"
 
     fcf_val = latest_r.get("free_cash_flow_cr")
-    if fcf_val is None and not cf_df.empty:
+    if (fcf_val is None or pd.isna(fcf_val)) and not cf_df.empty:
         l_cf = cf_df.iloc[-1]
         fcf_val = (l_cf.get("operating_activity", 0) or 0) + (
             l_cf.get("investing_activity", 0) or 0
         )
-    fcf_str = f"₹{fcf_val:,.0f} Cr" if isinstance(fcf_val, (int, float)) else "N/A"
+    fcf_str = format_kpi_value(fcf_val, is_currency=True)
 
-    # ReportLab Document Setup (A4 size: 595 x 842 points)
+    # ReportLab Document Setup
     doc = SimpleDocTemplate(
         output_pdf,
         pagesize=A4,
@@ -404,7 +406,7 @@ def generate_company_tearsheet(
     header_data = [
         [
             Paragraph(
-                f"<b>{comp_dict.get('company_name', company_id)} ({company_id})</b>",
+                f"<b>{comp_dict.get('company_name', company_id).strip()} ({company_id})</b>",
                 style_header_title,
             )
         ],
@@ -453,54 +455,36 @@ def generate_company_tearsheet(
             ],
         ],
     ]
-
-    # Convert inner lists to sub-tables
-    table_kpi_rows = []
-    for row in kpi_data:
-        sub_cells = []
-        for cell in row:
-            sub_tbl = Table([[cell[0]], [cell[1]]], colWidths=[178])
-            sub_tbl.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
-                        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#CBD5E0")),
-                        ("PADDING", (0, 0), (-1, -1), 5),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ]
-                )
-            )
-            sub_cells.append(sub_tbl)
-        table_kpi_rows.append(sub_cells)
-
-    kpi_table = Table(table_kpi_rows, colWidths=[185, 185, 185])
+    kpi_table = Table(kpi_data, colWidths=[180, 180, 180], rowHeights=[36, 36])
     kpi_table.setStyle(
         TableStyle(
             [
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ]
         )
     )
     story.append(kpi_table)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
 
-    # 3. Revenue & PAT Bar Chart
-    img_buf_rev = generate_chart_revenue_pat(pnl_df)
-    story.append(Image(img_buf_rev, width=550, height=175))
-    story.append(Spacer(1, 8))
+    # 3. Chart 1: Revenue & PAT Bar Chart
+    buf_pnl = generate_chart_revenue_pat(pnl_df)
+    story.append(Image(buf_pnl, width=555, height=170))
+    story.append(Spacer(1, 10))
 
-    # 4. ROE & ROCE Line Chart
-    img_buf_returns = generate_chart_roe_roce(ratios_df, comp_dict)
-    story.append(Image(img_buf_returns, width=550, height=165))
+    # 4. Chart 2: ROE & ROCE Dual Axis Chart
+    buf_ratios = generate_chart_roe_roce(ratios_df, comp_dict)
+    story.append(Image(buf_ratios, width=555, height=155))
 
-    # Force Page Break to Page 2
+    # PAGE BREAK
     story.append(PageBreak())
 
     # PAGE 2
-    # 1. Header Bar Page 2
-    header2_data = [
+    # 1. Header Bar
+    p2_header = [
         [
             Paragraph(
                 f"<b>FINANCIAL STRUCTURE & NLP ANALYSIS — {company_id}</b>",
@@ -514,113 +498,71 @@ def generate_company_tearsheet(
             )
         ],
     ]
-    header2_table = Table(header2_data, colWidths=[555])
-    header2_table.setStyle(
+    p2_table = Table(p2_header, colWidths=[555])
+    p2_table.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1A365D")),
-                ("PADDING", (0, 0), (-1, -1), 6),
+                ("PADDING", (0, 0), (-1, -1), 8),
             ]
         )
     )
-    story.append(header2_table)
+    story.append(p2_table)
     story.append(Spacer(1, 8))
 
-    # 2. Balance Sheet Stacked Bar Chart
-    img_buf_bs = generate_chart_bs_composition(bs_df)
-    story.append(Image(img_buf_bs, width=550, height=170))
+    # 2. Chart 3: Balance Sheet Composition
+    buf_bs = generate_chart_bs_composition(bs_df)
+    story.append(Image(buf_bs, width=555, height=160))
     story.append(Spacer(1, 8))
 
-    # 3. Cash Flow Breakdown Chart
-    img_buf_cf = generate_chart_cashflow_waterfall(cf_df)
-    story.append(Image(img_buf_cf, width=550, height=140))
-    story.append(Spacer(1, 8))
+    # 3. Chart 4: Cash Flow Waterfall
+    buf_cf = generate_chart_cashflow_waterfall(cf_df)
+    story.append(Image(buf_cf, width=555, height=155))
+    story.append(Spacer(1, 10))
 
-    # 4. Capital Allocation Badge & Pros/Cons Section
-    badge_style = ParagraphStyle(
-        "BadgeStyle",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=10,
-        leading=12,
-        textColor=colors.HexColor("#FFFFFF"),
-        alignment=1,
-    )
+    # 4. Capital Allocation & Pros/Cons Section
+    pros_html = "<br/>".join([f"• {p}" for p in c_pros[:4]])
+    cons_html = "<br/>".join([f"• {c}" for c in c_cons[:5]])
 
-    badge_table = Table(
+    nlp_data = [
         [
-            [
-                Paragraph(
-                    f"CAPITAL ALLOCATION PATTERN: {cap_pattern.upper()}", badge_style
-                )
-            ]
+            Paragraph("<b>CAPITAL ALLOCATION PATTERN: SHAREHOLDER RETURNS</b>", style_sec_title),
+            Paragraph("", style_sec_title),
         ],
-        colWidths=[555],
-    )
-    badge_table.setStyle(
+        [
+            Paragraph("<b>STRENGTHS & PROS</b>", style_pro_bullet),
+            Paragraph("<b>RISKS & CONS</b>", style_con_bullet),
+        ],
+        [
+            Paragraph(pros_html, style_pro_bullet),
+            Paragraph(cons_html, style_con_bullet),
+        ],
+    ]
+    nlp_table = Table(nlp_data, colWidths=[270, 275])
+    nlp_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#2B6CB0")),
-                ("PADDING", (0, 0), (-1, -1), 5),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ]
-        )
-    )
-    story.append(badge_table)
-    story.append(Spacer(1, 8))
-
-    # Pros and Cons side-by-side or stacked cleanly
-    pro_paras = [Paragraph(f"• {p}", style_pro_bullet) for p in c_pros[:4]]
-    con_paras = [Paragraph(f"• {c}", style_con_bullet) for c in c_cons[:4]]
-
-    pros_header = Paragraph(
-        "<b>STRENGTHS & PROS</b>",
-        ParagraphStyle(
-            "ProHead",
-            fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor("#2F855A"),
-        ),
-    )
-    cons_header = Paragraph(
-        "<b>RISKS & CONS</b>",
-        ParagraphStyle(
-            "ConHead",
-            fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=12,
-            textColor=colors.HexColor("#C53030"),
-        ),
-    )
-
-    col_pros = [pros_header, Spacer(1, 4)] + pro_paras
-    col_cons = [cons_header, Spacer(1, 4)] + con_paras
-
-    analysis_table = Table([[col_pros, col_cons]], colWidths=[272, 272])
-    analysis_table.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#F0FFF4")),
-                ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FFF5F5")),
-                ("BOX", (0, 0), (0, 0), 1, colors.HexColor("#C6F6D5")),
-                ("BOX", (1, 0), (1, 0), 1, colors.HexColor("#FEB2B2")),
+                ("SPAN", (0, 0), (1, 0)),
+                ("BACKGROUND", (0, 0), (1, 0), colors.HexColor("#2B6CB0")),
+                ("TEXTCOLOR", (0, 0), (1, 0), colors.white),
+                ("BACKGROUND", (0, 1), (0, -1), colors.HexColor("#F0FDF4")),
+                ("BACKGROUND", (1, 1), (1, -1), colors.HexColor("#FEF2F2")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("INNERGRID", (0, 1), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
                 ("PADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
     )
-    story.append(analysis_table)
+    story.append(nlp_table)
 
-    # Build PDF document
+    # Build PDF
     doc.build(story)
     return output_pdf
 
 
 if __name__ == "__main__":
-    test_comps = ["TCS", "HDFCBANK", "RELIANCE", "SUNPHARMA", "TATASTEEL"]
-    print("Testing 5 sample company tearsheets...")
-    for c in test_comps:
-        pdf_path = generate_company_tearsheet(c)
-        size_kb = os.path.getsize(pdf_path) / 1024.0
-        print(f"Generated {c} -> {pdf_path} ({size_kb:.1f} KB)")
+    print("Testing tearsheet generation for ABB and ADANIENSOL...")
+    generate_company_tearsheet("ABB")
+    generate_company_tearsheet("ADANIENSOL")
+    print("Tearsheet PDFs generated successfully.")
