@@ -19,7 +19,7 @@ st.set_page_config(page_title="AI Market Predictor", page_icon="🤖", layout="w
 st.markdown("""
 <div style="background: linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%); padding: 24px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
     <h1 style="color: #38bdf8; margin: 0; font-size: 2.2rem; font-weight: 700;">🤖 AI Market Predictor & Quantitative Engine</h1>
-    <p style="color: #94a3b8; margin-top: 6px; font-size: 1.05rem;">Next-day stock trend directional forecasting, price targets, and technical buy/hold/sell signals powered by Machine Learning.</p>
+    <p style="color: #94a3b8; margin-top: 6px; font-size: 1.05rem;">Next-day market opening price forecasts, closing targets, directional signals, and technical momentum powered by Machine Learning.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -54,8 +54,8 @@ with col_bull:
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#4ade80;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Expected Target<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
-            c3.markdown(f"Stop-Loss<br><strong style='color:#f87171;'>₹{b['stop_loss']:,.2f}</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{b['predicted_open_price']:,.2f} ({b.get('gap_type', '')})</strong>", unsafe_allow_html=True)
+            c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 with col_bear:
     st.markdown("#### 🔴 Top Bearish Candidates")
@@ -64,8 +64,8 @@ with col_bear:
             st.markdown(f"**{b['company_id']}** — *{b['company_name'].strip()}*")
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"Confidence<br><strong style='color:#f87171;'>{b['confidence_pct']}%</strong>", unsafe_allow_html=True)
-            c2.markdown(f"Expected Target<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
-            c3.markdown(f"Stop-Loss<br><strong style='color:#f87171;'>₹{b['stop_loss']:,.2f}</strong>", unsafe_allow_html=True)
+            c2.markdown(f"Forecast Open<br><strong style='color:#38bdf8;'>₹{b['predicted_open_price']:,.2f} ({b.get('gap_type', '')})</strong>", unsafe_allow_html=True)
+            c3.markdown(f"Target Close<br><strong style='color:#38bdf8;'>₹{b['predicted_target_close']:,.2f} ({b['expected_change_pct']:+.1f}%)</strong>", unsafe_allow_html=True)
 
 st.divider()
 
@@ -89,26 +89,29 @@ pred = predict_stock_tomorrow(ticker)
 if "error" in pred:
     st.error(pred["error"])
 else:
-    # Summary Cards
-    m1, m2, m3, m4, m5 = st.columns(5)
+    # Summary Metrics Grid (6 Metric Cards)
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
     
     dir_icon = "🟢" if pred["direction"] == "BULLISH" else "🔴"
     
     m1.metric("Current Close", f"₹{pred['current_close']:,.2f}", f"As of {pred['as_of_date']}")
-    m2.metric("Tomorrow Forecast", f"{dir_icon} {pred['direction']}", f"{pred['confidence_pct']}% Confidence")
-    m3.metric("Target Price", f"₹{pred['predicted_target_close']:,.2f}", f"{pred['expected_change_pct']:+.2f}%")
-    m4.metric("Stop-Loss Bounds", f"₹{pred['stop_loss']:,.2f}")
-    m5.metric("Support / Resistance", f"₹{pred['support_20d']} / ₹{pred['resistance_20d']}")
+    m2.metric("Tomorrow Open Price", f"₹{pred['predicted_open_price']:,.2f}", f"{pred['gap_type']} ({pred['expected_gap_pct']:+.2f}%)")
+    m3.metric("Tomorrow Direction", f"{dir_icon} {pred['direction']}", f"{pred['confidence_pct']}% Confidence")
+    m4.metric("Target Close Price", f"₹{pred['predicted_target_close']:,.2f}", f"{pred['expected_change_pct']:+.2f}%")
+    m5.metric("Stop-Loss Bounds", f"₹{pred['stop_loss']:,.2f}")
+    m6.metric("Support / Resistance", f"₹{pred['support_20d']} / ₹{pred['resistance_20d']}")
 
     col_chart, col_signals = st.columns([3, 1])
 
     with col_signals:
-        st.markdown("#### ⚡ Quantitative Metrics")
+        st.markdown("#### ⚡ Quantitative Signals")
+        st.markdown(f"**Predicted Open**: `₹{pred['predicted_open_price']:,.2f}`")
+        st.markdown(f"**Opening Gap**: `{pred['gap_type']}` (`{pred['expected_gap_pct']:+.2f}%`)")
         st.markdown(f"**RSI (14)**: `{pred['rsi_14']}`")
         st.markdown(f"**Bullish Prob**: `{pred['prob_bullish']}%`")
         st.markdown(f"**Bearish Prob**: `{pred['prob_bearish']}%`")
         
-        st.markdown("#### 📌 Key Technical Signals")
+        st.markdown("#### 📌 Key Indicators")
         for sig in pred.get("key_signals", []):
             st.info(f"✔ {sig}")
 

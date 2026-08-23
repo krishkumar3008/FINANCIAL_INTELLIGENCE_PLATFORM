@@ -56,8 +56,9 @@ def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["return_5d"] = close.pct_change(5)
     df["volatility_5d"] = df["return_1d"].rolling(window=5).std()
 
-    # Target variable for ML (1 if next day close > today close)
+    # Target variables for ML
     df["target_next_close"] = close.shift(-1)
+    df["target_next_open"] = df["open_price"].shift(-1)
     df["target_up"] = (df["target_next_close"] > close).astype(int)
 
     return df
@@ -71,7 +72,8 @@ FEATURE_COLS = [
 
 def predict_stock_tomorrow(company_id: str, db_path: str = "nifty100.db") -> dict:
     """
-    Trains ML models on historical prices for company_id and returns next-day market forecast.
+    Trains ML models on historical prices for company_id and returns next-day market forecast
+    including Opening Price Forecast, Closing Price Target, and Directional Signals.
     """
     conn = get_db_connection(db_path)
     try:
@@ -99,7 +101,7 @@ def predict_stock_tomorrow(company_id: str, db_path: str = "nifty100.db") -> dic
         df = compute_technical_indicators(df)
 
         # Separate feature dataset for training (excluding last row which has unknown target)
-        clean_df = df.dropna(subset=FEATURE_COLS + ["target_up", "target_next_close"]).copy()
+        clean_df = df.dropna(subset=FEATURE_COLS + ["target_up", "target_next_close", "target_next_open"]).copy()
         if len(clean_df) < 20:
             return {
                 "company_id": company_id,
@@ -109,15 +111,19 @@ def predict_stock_tomorrow(company_id: str, db_path: str = "nifty100.db") -> dic
 
         X = clean_df[FEATURE_COLS]
         y_cls = clean_df["target_up"]
-        y_reg = clean_df["target_next_close"]
+        y_reg_close = clean_df["target_next_close"]
+        y_reg_open = clean_df["target_next_open"]
 
         # Train Classifier for Direction
         clf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
         clf.fit(X, y_cls)
 
-        # Train Regressor for Target Price
-        reg = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
-        reg.fit(X, y_reg)
+        # Train Regressors for Next-Day Close & Next-Day Open Prices
+        reg_close = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
+        reg_close.fit(X, y_reg_close)
+
+        reg_open = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42)
+        reg_open.fit(X, y_reg_open)
 
         # Feature matrix for the latest available date
         latest_row = df.iloc[-1]
@@ -127,15 +133,26 @@ def predict_stock_tomorrow(company_id: str, db_path: str = "nifty100.db") -> dic
         prob_up = float(clf.predict_proba(latest_features)[0][1])
         prob_down = 1.0 - prob_up
 
-        predicted_target_close = float(reg.predict(latest_features)[0])
+        predicted_target_close = float(reg_close.predict(latest_features)[0])
+        predicted_open_price = float(reg_open.predict(latest_features)[0])
+
         current_close = float(latest_row["close_price"])
         as_of_date = str(latest_row["date"])
 
         direction = "BULLISH" if prob_up >= 0.50 else "BEARISH"
         confidence_pct = round((prob_up if direction == "BULLISH" else prob_down) * 100, 1)
 
-        # Price targets & risk levels
+        # Price targets & Opening gap calculations
         price_change_pct = round(((predicted_target_close / current_close) - 1.0) * 100, 2)
+        gap_pct = round(((predicted_open_price / current_close) - 1.0) * 100, 2)
+        
+        if gap_pct >= 0.15:
+            gap_type = "GAP UP 🟢"
+        elif gap_pct <= -0.15:
+            gap_type = "GAP DOWN 🔴"
+        else:
+            gap_type = "FLAT OPEN ⚖️"
+
         atr_estimate = (float(latest_row["high_price"]) - float(latest_row["low_price"])) if pd.notna(latest_row["high_price"]) else current_close * 0.015
         stop_loss = round(current_close - (1.5 * atr_estimate) if direction == "BULLISH" else current_close + (1.5 * atr_estimate), 2)
         support = round(float(df["low_price"].tail(20).min()), 2)
@@ -167,6 +184,9 @@ def predict_stock_tomorrow(company_id: str, db_path: str = "nifty100.db") -> dic
             "company_name": company_name,
             "as_of_date": as_of_date,
             "current_close": round(current_close, 2),
+            "predicted_open_price": round(predicted_open_price, 2),
+            "expected_gap_pct": gap_pct,
+            "gap_type": gap_type,
             "predicted_target_close": round(predicted_target_close, 2),
             "expected_change_pct": price_change_pct,
             "direction": direction,
@@ -216,11 +236,7 @@ def get_top_forecasts(db_path: str = "nifty100.db", top_n: int = 5) -> dict:
 
 
 if __name__ == "__main__":
-    logger.info("Testing market predictor module...")
+    logger.info("Testing market predictor module with Next-Day Open Price...")
     sample = predict_stock_tomorrow("RELIANCE")
     print("\n=== RELIANCE PREDICTION ===")
     print(sample)
-
-    print("\n=== TOP MARKET FORECASTS ===")
-    top = get_top_forecasts(top_n=3)
-    print(top)
