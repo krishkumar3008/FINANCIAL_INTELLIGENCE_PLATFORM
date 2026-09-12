@@ -7,7 +7,7 @@
 - **GitHub Repository**: [https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM](https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM)
 
 ## Project Overview
-The Nifty 100 Financial Intelligence Platform is an enterprise-grade financial analysis, machine learning, screening, REST API, and reporting platform covering all 92 constituents of the Nifty 100 index across 10-year historical periods (2015–2024).
+The Nifty 100 Financial Intelligence Platform is an enterprise-grade financial analysis, machine learning, screening, REST API, and reporting platform covering all 92 constituents of the Nifty 100 index across 10-year historical periods (2015–2026).
 
 In **Sprint 6 (Day 45 Release)**, the platform achieves complete feature sign-off across Epics 10, 11 & 12:
 - **Machine Learning Clustering**: Unsupervised KMeans clustering ($k=5$) with sector median imputation, `StandardScaler`, elbow curve plot, and financial profiling.
