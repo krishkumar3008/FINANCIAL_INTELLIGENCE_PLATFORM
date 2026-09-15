@@ -12,7 +12,19 @@ from src.database import get_db_connection
 from src.dashboard.utils.db import get_companies
 from src.analytics.predictor import predict_stock_tomorrow, get_top_forecasts, compute_technical_indicators
 from src.etl.live_updater import fetch_and_update_prices
-from src.automation.daily_pipeline import get_scheduler_status, run_daily_market_close_pipeline
+
+try:
+    from src.automation.daily_pipeline import get_scheduler_status, run_daily_market_close_pipeline
+except Exception as _pipe_err:
+    def get_scheduler_status(db_path: str = "nifty100.db") -> dict:
+        return {
+            "last_run": None,
+            "total_cached_predictions": 0,
+            "next_scheduled_run": "16:00 IST Next Weekday"
+        }
+
+    def run_daily_market_close_pipeline(force: bool = False, run_type: str = "MANUAL_UI", db_path: str = "nifty100.db") -> dict:
+        return {"status": "FAILED", "error_message": str(_pipe_err)}
 
 st.set_page_config(page_title="AI Market Predictor", page_icon="🤖", layout="wide")
 

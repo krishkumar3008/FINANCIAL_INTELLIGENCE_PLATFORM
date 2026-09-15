@@ -12,7 +12,6 @@ if ROOT_DIR not in sys.path:
 
 from src.database import get_db_connection
 from src.etl.live_updater import fetch_and_update_prices
-from src.analytics.predictor import batch_generate_and_save_predictions
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("daily_pipeline")
@@ -101,7 +100,12 @@ def run_daily_market_close_pipeline(
 
         # Step 2: Batch generate and save predictions for all constituent companies
         logger.info("Step 2/2: Training models and computing next-day market forecasts...")
-        pred_summary = batch_generate_and_save_predictions(db_path=db_path)
+        try:
+            from src.analytics.predictor import batch_generate_and_save_predictions
+            pred_summary = batch_generate_and_save_predictions(db_path=db_path)
+        except Exception as pred_err:
+            logger.warning(f"batch_generate_and_save_predictions could not complete: {pred_err}")
+            pred_summary = {"saved_count": 0}
         predictions_saved = pred_summary.get("saved_count", 0)
 
         duration = round(time.time() - start_time, 2)
