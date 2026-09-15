@@ -10,6 +10,7 @@ from src.api.routers import (
     health,
     peers,
     portfolio,
+    predict,
     screener,
     sectors,
     valuation,
@@ -60,6 +61,16 @@ app.include_router(peers.router, prefix="/api/v1", tags=["Peers"])
 app.include_router(valuation.router, prefix="/api/v1", tags=["Valuation"])
 app.include_router(portfolio.router, prefix="/api/v1", tags=["Portfolio"])
 app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
+app.include_router(predict.router, prefix="/api/v1", tags=["Predictor"])
+
+from src.automation.scheduler_daemon import start_background_scheduler
+
+
+@app.on_event("startup")
+def on_startup():
+    logger.info("Initializing automated daily market-close scheduler daemon...")
+    start_background_scheduler()
+
 
 
 @app.get("/", tags=["Root"])

@@ -201,6 +201,43 @@ CREATE TABLE IF NOT EXISTS peer_percentiles (
     UNIQUE(company_id, metric, year)
 );
 
+-- 14. daily_predictions table
+CREATE TABLE IF NOT EXISTS daily_predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id TEXT NOT NULL,
+    prediction_date TEXT NOT NULL,
+    current_close REAL NOT NULL,
+    predicted_open_price REAL NOT NULL,
+    expected_gap_pct REAL NOT NULL,
+    gap_type TEXT NOT NULL,
+    predicted_target_close REAL NOT NULL,
+    expected_change_pct REAL NOT NULL,
+    direction TEXT NOT NULL,
+    confidence_pct REAL NOT NULL,
+    prob_bullish REAL NOT NULL,
+    prob_bearish REAL NOT NULL,
+    stop_loss REAL,
+    support_20d REAL,
+    resistance_20d REAL,
+    rsi_14 REAL,
+    key_signals TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    UNIQUE(company_id, prediction_date)
+);
+
+-- 15. scheduler_run_log table
+CREATE TABLE IF NOT EXISTS scheduler_run_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_timestamp TEXT NOT NULL,
+    run_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    records_updated INTEGER DEFAULT 0,
+    predictions_generated INTEGER DEFAULT 0,
+    error_message TEXT,
+    duration_seconds REAL
+);
+
 -- Indexes for performance optimization
 CREATE INDEX IF NOT EXISTS idx_profitandloss_company ON profitandloss(company_id);
 CREATE INDEX IF NOT EXISTS idx_balancesheet_company ON balancesheet(company_id);
@@ -209,4 +246,7 @@ CREATE INDEX IF NOT EXISTS idx_stock_prices_company_date ON stock_prices(company
 CREATE INDEX IF NOT EXISTS idx_ratios_company ON financial_ratios(company_id);
 CREATE INDEX IF NOT EXISTS idx_market_cap_company ON market_cap(company_id);
 CREATE INDEX IF NOT EXISTS idx_peer_percentiles_comp_metric ON peer_percentiles(company_id, metric);
+CREATE INDEX IF NOT EXISTS idx_daily_predictions_comp_date ON daily_predictions(company_id, prediction_date);
+CREATE INDEX IF NOT EXISTS idx_daily_predictions_date ON daily_predictions(prediction_date);
+
 

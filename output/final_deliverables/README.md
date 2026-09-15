@@ -1,5 +1,11 @@
 # Nifty 100 Financial Intelligence Platform
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://financialintelligence.streamlit.app/)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM)
+
+- **Live Streamlit App**: [https://financialintelligence.streamlit.app/](https://financialintelligence.streamlit.app/)
+- **GitHub Repository**: [https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM](https://github.com/krishkumar3008/FINANCIAL_INTELLIGENCE_PLATFORM)
+
 ## Project Overview
 The Nifty 100 Financial Intelligence Platform is an enterprise-grade financial analysis, machine learning, screening, REST API, and reporting platform covering all 92 constituents of the Nifty 100 index across 10-year historical periods (2015–2024).
 

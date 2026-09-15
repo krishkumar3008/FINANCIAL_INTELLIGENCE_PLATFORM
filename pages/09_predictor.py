@@ -12,6 +12,7 @@ from src.database import get_db_connection
 from src.dashboard.utils.db import get_companies
 from src.analytics.predictor import predict_stock_tomorrow, get_top_forecasts, compute_technical_indicators
 from src.etl.live_updater import fetch_and_update_prices
+from src.automation.daily_pipeline import get_scheduler_status, run_daily_market_close_pipeline
 
 st.set_page_config(page_title="AI Market Predictor", page_icon="🤖", layout="wide")
 
@@ -66,21 +67,57 @@ st.markdown("""
 
 # Modern Title Banner
 st.markdown("""
-<div style="background: linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%); padding: 24px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px;">
+<div style="background: linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.9) 100%); padding: 24px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
     <h1 style="color: #38bdf8; margin: 0; font-size: 2.2rem; font-weight: 700;">🤖 AI Market Predictor & Quantitative Engine</h1>
     <p style="color: #94a3b8; margin-top: 6px; font-size: 1.05rem;">Next-day market opening price forecasts, closing targets, directional signals, and technical momentum powered by Machine Learning.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Top Bar & Live Update Action
-col_hdr1, col_hdr2 = st.columns([3, 1])
+# Scheduler & Pipeline Status Bar
+sched_status = get_scheduler_status()
+last_run = sched_status.get("last_run") or {}
+last_run_time = last_run.get("run_timestamp", "Not executed yet")
+last_run_status = last_run.get("status", "IDLE")
+next_run_time = sched_status.get("next_scheduled_run", "16:00 IST Next Weekday")
+total_cached = sched_status.get("total_cached_predictions", 0)
 
-with col_hdr2:
-    if st.button("🔄 Refresh Live Market Data", type="primary", use_container_width=True):
+status_badge = "🟢 ACTIVE" if last_run_status == "SUCCESS" else ("⏳ RUNNING" if last_run_status == "RUNNING" else "🟡 IDLE")
+
+st.markdown(f"""
+<div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <span style="font-weight: 700; color: #38bdf8; font-size: 0.95rem;">⚡ DAILY AUTOMATION PIPELINE: </span>
+        <span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 3px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">{status_badge}</span>
+        <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 12px;">⏰ Trigger: <strong>16:00 IST (Mon–Fri)</strong></span>
+    </div>
+    <div style="color: #cbd5e1; font-size: 0.85rem;">
+        Last Run: <strong style="color: #f8fafc;">{last_run_time}</strong> &nbsp;|&nbsp; 
+        Pre-computed: <strong style="color: #38bdf8;">{total_cached}/92 Stocks</strong> &nbsp;|&nbsp; 
+        Next Auto-Run: <strong style="color: #4ade80;">{next_run_time}</strong>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Top Action Buttons
+col_act1, col_act2, col_act3 = st.columns([2, 1, 1])
+
+with col_act2:
+    if st.button("⚡ Run Daily Pipeline Now", type="primary", use_container_width=True, help="Ingests latest market data and pre-computes all 92 next-day predictions"):
+        with st.spinner("Executing daily market-close pipeline (downloading prices & training models)..."):
+            res = run_daily_market_close_pipeline(force=True, run_type="MANUAL_UI")
+            if res.get("status") == "SUCCESS":
+                st.success(f"Pipeline completed in {res.get('duration_seconds')}s! Pre-computed {res.get('predictions_generated')} predictions.")
+                st.rerun()
+            else:
+                st.error(f"Pipeline returned: {res.get('status')} - {res.get('error_message')}")
+
+with col_act3:
+    if st.button("🔄 Refresh Market Data", use_container_width=True, help="Downloads latest daily candles from Yahoo Finance"):
         with st.spinner("Fetching latest stock prices from Yahoo Finance..."):
             count = fetch_and_update_prices()
             st.success(f"Updated {count:,} stock price records up to today!")
             st.rerun()
+
 
 # ----------------------------------------------------
 # SECTION 1: TOP MARKET FORECASTS FOR TOMORROW
